@@ -1,0 +1,8 @@
+研制和制作青铜器需要花费很多人力和物力。
+It takes a lot of human labor and effort to develop and create a bronze artifact. 
+
+确实没错。如果吃不饱人怎么和大模型对话？
+Indeed. If human are not fed, how to takl to LLM?
+
+只要你献上一个“人”，它就会变成你需要的卜辞。
+As long as you sacrifice a "人", then you will get any answer to your questions.

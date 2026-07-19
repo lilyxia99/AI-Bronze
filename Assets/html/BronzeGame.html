@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重生之我在商朝做大模型</title>
+
+</head>
+
+<body>
+    <div class="ding-container">
+
+        <pre class="bronze group2 hide" id="round-ding"  ><!--1 圆鼎-->
+  ___              ___
+ //-\\            //-\\
+((   ))          ((   ))
+=\\_//==================
+|                      |
+|======================|
+|0100010000110110101011|
+|======================|
+|                      |
+|                      |
+ \                    /
+  \_  ___ _ __  __  _/
+   /   __________   \
+  (@} /          \ {@)
+   \ |            | /
+   |_|            |_|
+    </pre>
+    <pre class="bronze hide" id="square-ding" ><!--2 方鼎-->
+   ____           ____
+  | __ |         | __ |
+  ||  ||         ||  ||
+==||__||=========||__||==
+|                       |
+|=======================|
+|01000_1010||01001_10101|
+|~~~~~~{{回}||{回}}~~~～~|
+|01001_10100|00010_00101|
+|=======================|
+|__    ___________    __|
+   \  |           |  /
+   |  |           |  |
+   |  |           |  |
+   |__|           |__|
+   </pre>
+
+   <pre class="bronze group2 hide g2-left g2-bottom" id="jia"><!--3 斝-->
+  0     0
+__|_____|__
+ \%%%%%%%/_
+  \*****/  \
+  )     (  )
+  /_____\_/
+ /       \
+/         \
+</pre>
+<pre class="bronze group2 hide g2-top g2-right" id="bu"> <!--4-->
+ ______________________
+  |==================|
+ /.#@#.#@ #.#@ #.#@ @@\
+|=====o====o====o======|
+\_____________________ /
+ \01000110010011000010/
+  \_ __ ___ _  ____ _/
+   /________________\    
+</pre>
+<pre class="bronze group2 hide g2-bottom g2-right" id="li"> <!--5 鬲-->
+   0         0
+   |---------|
+  /01010101001\
+ /=============\
+(               )
+ \**\%%\ /%%/**/
+  \ #$#~#~#$& /
+   \___#@#___/
+    V  \@/  V
+        V   
+
+</pre>
+<pre class="bronze group2 hide g2-top" id="dou" style="left:20%;"> <!--6 斗-->
+    ____
+   __||__
+  /******\
+O(--------)0
+  \_@@@@_/
+    \##/
+     ||
+     ||
+     ||
+   ------
+</pre>
+
+<pre class="bronze group1 g1-right g1-height" id="jue" > <!--7 爵-->
+__  _
+  \_|______
+   \@@##*/
+    \ {}/
+    | {}|
+    |___|
+    / | \
+   /  |  \
+</pre>
+<pre class="group1 bronze g1-mid g1-height" id="gui"> <!--8 觚-->
+   ===============
+ MM=|~~%%%%%%%~~|=MM
+((  |<{o}>|<{o}>|  ))
+ \\=| @@[M|M]@@ |=//
+     \_________/
+      /_______\
+</pre>
+
+<pre class="bronze group1 g1-left g1-height" id="pan" > <!--8 盘-->
+_____________________
+ \@0101~001001@1~0@/
+  \_______________/
+   /_____________\
+</pre>
+
+    </div>
+    
+
+</body>
+<style>
+    body{
+        background-color: black;
+    }
+
+    /* 让青铜器的文字内容默认不可见，点击后才显示 */
+    .hidden{
+        opacity:0;
+    }
+
+    /*position*/
+
+    /** group1: 觚、盘、爵*/
+    .g1-left{
+        left:20%;
+    }
+
+    .g1-mid{
+        left:50%;
+    }
+
+    .g1-right{
+        left:80%;
+    }
+
+    .g1-height{
+        top:50%;
+    }
+
+    /** group2: 鼎、斝、鬲、斗、卣*/
+    .g2-top{
+        top:30vh;
+    }
+
+    .g2-left{
+        left:20%;
+    }
+
+    .g2-bottom{
+        top:70vh;
+    }
+
+    .g2-right{
+        left:80%;
+    }
+
+    .ding-container{
+        min-width: 600px;
+        height:600px;
+        width:100%;
+        height:100%;
+        overflow:hidden;
+        background-color: black;
+    }
+
+
+    .bronze {
+        font-family: monospace;
+        white-space: pre;
+        margin: 0;
+        width: fit-content;
+        cursor: pointer;
+        position:absolute;
+        background-color: rgba(0,0,0,0.8);
+        transform:translate(-50%,-50%);
+        z-index:-1;
+        color:rgb(118, 208, 146);
+    }
+
+
+    #square-ding{
+        left: 20%;
+        top: 30vh;
+    }
+
+    #round-ding{
+        left:50%;
+        top:50%;
+    }
+
+
+
+    .active{
+        cursor:auto;
+        max-width: min(90vw, 640px);
+        max-height: 80vh;
+        overflow: hidden;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .hide{
+        display:none;
+    }
+
+    /* dingString 里有些文字内容自带了一层 <pre>，
+       它默认 white-space:pre，会覆盖上面的换行设置，这里让它继承外层的 wrap 规则 */
+    .active pre{
+        white-space: inherit;
+        word-break: inherit;
+        margin: 0;
+        font-family: inherit;
+    }
+</style>
+<script>
+    let dingNum = 0;
+    let dingString = [
+    {id:0, text:"在3000多年前古代中国，有一个朝代叫做商朝。\nIn more than 3000 years ago in China, \nthere was a dynasty called Shang(商)Dynasty.\n\n那是一个鬼比人更重要的时代。\nIt was a time when GHOST \nis more important than human."},
+    {id:1, text:"商朝人的王乐于占卜。他几乎无所不问：\n明天会下雨吗？\n今天是个打猎的好时间吗？\n我会有个儿子还是女儿……？\nShang's leader LOVES fortune-telling.\nHe asked about almost anything -- \nIs it gonna rain tomorrow? \nIs today a good day to hunt? \nAm I gonna have daughter or son?..."},
+    {id:2, text:"占卜的时候，\n巫师会在龟甲上写下文字，放在火上烤，\n上面显示的裂痕就是卜辞。\nWhen doing fortune-telling, \nwizards wrote on the shell of turtles and burn them. \nThe cracks becomes the signs that are delivered. \n\n语言，作为商朝的核心科技之一，是和祖先对话的工具。\nLanguage, as one of their core technologies, \nis their tool to communicate with ancesters. "},
+    {id:3, text:"为了维护与祖先的关系，商朝人会定期举行祭祀仪式。\nIn order to maintain the relationship with the ancester, \nShang people held ceremoney periodically--\n\n其中就包括人祭。\n--which, includes human sacrifice. "},
+    {id:4, text:"考古曾经发现，商人曾使用一种叫做“甗”的器具去蒸人头。\nAccording to the archeology findings, \nShang people used to use a utensil called 'Yan' to steam human head. \n甗是一种青铜器。青铜器技术是商朝的另一项重要的科技。\n'Yan' is a kind of Bronze utensil. \nBronze casting is another important technology of theirs."},
+    {id:5, text:"青铜器是通过模具浇筑的，本质上它是一个模型。\nA bronze artifact is casted with a mold, so essentially it is a model. "},
+    {id:6, text:"它的尺寸很大，所以是一个大模型。\nIt's really big, so it's a \"large model\"."},
+    {id:7, text:"青铜器上往往也刻着文字和语言，这就是我们说的“大语言模型”。\nThey wrote a lot of text on the model, that's what we called a \"Large Language Model\".(LLM)"},
+    {id:8, text:"研制和制作青铜器需要花费很多人力和物力。\nIt takes a lot of human labor and resources to develop and cast bronze vessels."},
+    {id:9, text:"在这个基础上，这个大语言模型还可以炖肉。因此你也可以叫它“大人肉模型”\nOn top of that, you can even cook meat (human) in it, so you can also call it \"Large Meet Model\" (LMM)."},
+    {id:10, text:"确实没错。如果吃不饱人怎么和大模型对话？\nExactly. If people aren't fed, how can they talk to the large model?"},
+    {id:11, text:"只要你献上一个“人”，它就会变成你需要的卜辞。\nAs long as you offer a \"human\", it will turn into the oracle answer you seek."},
+    {id:12, text:"有一种理论说，商朝的权力中心，不是给人住的，而是给鬼住的。\nOne theory says that the power center of the Shang was not built for the living, but for ghosts."},
+    {id:13, text:"鬼是至高的权力，能够与鬼同住，是贵族的荣幸。能够给鬼服务，是至高的荣耀。\nGhosts held supreme power. To dwell with ghosts was the privilege of nobility. To serve ghosts was the highest glory."},
+    {id:14, text:"于是在这些鬼的屋子里，排列着承载着祖先之鬼的容器，他们就是\"服务器\"。\nAnd so, within these houses of ghosts, arrayed are the vessels that carry the ghosts of ancestors—they are the \"servers\"."},
+    {id:15, text:"召唤祖先不仅可以帮助他们，而且可以作为权力的象征、统治的手段。\nSummoning ancestors not only helped them, but also served as a symbol of power and a means of rule."},
+    {id:16, text:"有能力祭祖本身就是一种科技、人力和财力的显现。\nThe ability to perform ancestral sacrifices was itself a manifestation of technology, manpower, and wealth."},
+    {id:17, text:"因为这代表你有语言和青铜器的科技，你有力量去煮人，还有比其他人更强的祖先。\nBecause it meant you possessed the technology of language and bronze casting, the power to cook people, and more powerful ancestors than anyone else."},
+    {id:18, text:"商朝后期，商人不再允许外族通婚，他们把邻居羌人拿来当牛羊一样作为祭祀的燃料焚烧。\nIn the late Shang, the Shang no longer permitted intermarriage with outsiders. They took their neighbors, the Qiang, and burned them as sacrificial fuel, just like livestock."},
+    {id:19, text:"“羌”的字形上面是一只羊，下面是两只脚。对于商朝人来说，羌人和羊、牛这样的动物差不多。\nThe character '羌' consists of a sheep on top and two feet below. To the Shang, the Qiang were hardly different from animals like sheep and cattle."},
+    {id:20, text:"在商的西边住着周人，他们后来取代了商朝。\nTo the west of the Shang lived the Zhou people, who later overthrew them."},
+    {id:21, text:"周人靠着三点战胜了商人：\nThe Zhou defeated the Shang on three counts:"},
+    {id:22, text:"周人和商人不同，周人接纳外族，联合周边部族，善待羌人。\nUnlike the Shang, the Zhou accepted outsiders, united with surrounding tribes, and treated the Qiang kindly."},
+    {id:23, text:"周人掌握了商人的核心科技——文字、青铜器和祭祀。\nThe Zhou mastered the Shang's core technologies—writing, bronze casting, and ritual sacrifice."},
+    {id:24, text:"周人并不依赖大模型。他们有自己的占卜术，但他们主要以人为本，而非鬼。\nThe Zhou did not rely on large models. They had their own divination, but they focused on humans, not ghosts."},
+    {id:25, text:"“商人”这个词在中文里也指做生意的人。\nThe word '商人' (Shangren) in Chinese also means 'merchant' or 'businessman'."},
+    {id:26, text:"在周人取商朝而代之之后，商朝人被流放，只能去做生意，于是他们成为了“商人”。\nAfter the Zhou replaced the Shang, the Shang people were exiled and had to take up trade—thus they became 'merchants'."},
+    {id:27, text:"毫无疑问，使用大模型是一种只有少数人能够完全控制的特权。他们曾经被商人控制，如今也是。\nUndoubtedly, using large models is a privilege that only a few can fully control. It was once controlled by the Shang, and so it remains today."}
+];
+    let changeReady = false;
+
+    const dings = document.querySelectorAll('.bronze'); // 获取所有的青铜器元素
+
+    dings.forEach(ding=>{
+        ding.addEventListener('click',function(event){
+            //this 指向被点击的那个div
+            if(!this.classList.contains('active')){
+            console.log('点击了：',this);// 打印被点击的青铜器元素
+
+            this.innerHTML=dingString[dingNum].text;// 将对应的文字内容显示在青铜器上
+            this.classList.add('active');// 给被点击的青铜器添加一个类，表示它已经被点击过
+
+            this.style.zIndex = dingNum;// 将被点击的青铜器的层级设置为当前的点击次数，确保它显示在其他青铜器之上
+
+            dingNum=dingNum+1;
+            
+            console.log('当前点击次数：',dingNum);// 打印当前的点击次数
+            
+            if(dingNum === 3){
+                console.log('点击次数达到3，准备切换 group1 到 group2');
+                changeReady = true;
+                console.log('changeReady:', changeReady);
+            }
+            fitBoxToViewport(this);// 根据锚点到视口边缘的距离限制尺寸，位置保持不变
+            }
+        })
+    })
+
+
+
+    // 每个青铜器都是靠 left/top(百分比或vh) + translate(-50%,-50%) 定位的，
+    // 这意味着不管框多宽/多高，它的"中心点"永远等于当前的 left/top —— 我们完全不需要
+    // 也不应该去改 left/top/transform，只需要根据这个中心点到视口边缘、以及到相邻
+    // 青铜器中心点的距离，反推出一个不会溢出、也不会盖住别的框的 max-width/max-height，
+    // 框的位置永远不会被挪动。
+    function getAnchor(el){
+        const rect = el.getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
+    const BASE_FONT_SIZE = 12; // 文字框的基准字号（px）
+
+    function fitBoxToViewport(el){
+        requestAnimationFrame(()=>{
+            if(!el.classList.contains('active')) return;
+
+            const margin = 16; // 到视口边缘的间距
+            const gap = 24;    // 到左右相邻青铜器的间距
+            const anchor = getAnchor(el);
+
+            let maxW = 2 * Math.min(anchor.x, window.innerWidth - anchor.x) - margin * 2;
+
+            // 只用横向距离限制宽度，避免跟左右相邻的青铜器重叠。
+            // 字号保持不变，所以不对高度做类似限制——装不下就让框自己变高，
+            // 而不是缩小字号或出现滚动条（极端情况下高度可能会变得比较高）
+            dings.forEach(other=>{
+                if(other === el) return;
+                const oAnchor = getAnchor(other);
+                const dx = Math.abs(oAnchor.x - anchor.x);
+                const dy = Math.abs(oAnchor.y - anchor.y);
+                if(dx === 0 && dy === 0) return;
+                if(dx >= dy){
+                    maxW = Math.min(maxW, dx - gap);
+                }
+            });
+
+            // 取偶数像素：宽高是偶数时 translate(-50%,-50%) 正好位移整数像素，
+            // 不然半像素的位移会让文字被浏览器做抗锯齿模糊处理
+            maxW = Math.max(160, Math.floor(maxW / 2) * 2);
+
+            // 宽度直接用算出来的预算，而不是"内容需要多宽就多宽"——
+            // 不然文字短的框（比如中间那个）离上限还很远，窗口缩小时看起来就像没反应，
+            // 而文字长、已经顶到上限的框才会明显跟着变窄，三个框感觉不一致
+            el.style.width = maxW + 'px';
+            el.style.height = '';
+            el.style.maxHeight = 'none';
+            el.style.fontSize = BASE_FONT_SIZE + 'px';
+
+            const finalH = Math.ceil(el.scrollHeight / 2) * 2;
+            el.style.height = finalH + 'px';
+        });
+    }
+
+    // 窗口尺寸变化时，重新计算每个已展开文字框的 max-width/max-height，
+    // 只调整尺寸，不触碰位置
+    window.addEventListener('resize', ()=>{
+        document.querySelectorAll('.bronze.active').forEach(fitBoxToViewport);
+    });
+
+    //group1 消失，group2 显示
+    
+    
+    function handleClick() {
+        // 如果点击的是青铜器本身，不处理（让青铜器的点击事件处理）
+    if (event.target.closest('.bronze')) {
+        return;
+    }
+    // 只有 changeReady 为 true 时才执行（说明 dingNum 刚变成 3，等待用户点击）
+    if (dingNum === 3 && changeReady === true) {
+        console.log('点击次数达到3，隐藏 group1 显示 group2');
+        document.querySelectorAll('.group1').forEach(el => {
+            el.classList.add('hide');
+            el.classList.remove('active');
+        });
+        document.querySelectorAll('.group2').forEach(el => {
+            el.classList.remove('hide');
+        });
+        // 执行后移除监听器，避免重复触发
+        //document.removeEventListener('click', handleClick);
+            }
+        }
+
+    document.addEventListener('click', handleClick);
+
+    function Ding(){
+        this.innerHTML=dingString[dingNum].text;
+        console.log(this);
+    }
+
+    function squareDing() {
+        let squareDing = document.getElementById("square-ding");
+        squareDing.innerHTML="<pre>在3000多年前古代中国，有一个朝代叫做商朝。\nIn more than 3000 years ago in China, \nthere was a dynasty called Shang(商)Dynasty.\n那是一个人比鬼更重要的时代。\nIt was a time when GHOST \nis more important than human.</pre>";
+    }
+
+    function roundDing(){
+        let roundDing = document.getElementById("round-ding");
+        roundDing.innerHTML="";
+    }
+</script>
+
+</html>

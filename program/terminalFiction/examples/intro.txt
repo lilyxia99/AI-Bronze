@@ -1,0 +1,27 @@
+
+  ·  ·  ·  ˙  ·  ˙  ·  ·  ˙  ·  ·  ·  ˙  ·  ˙  ·  ·  ·  ˙  ·  ·  ·  ˙  ·
+  ·  ˙  ·  ·  ·  ˙  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ˙  ·  ·
+
+
+            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+            ░                                          ░
+            ░           DEEP SPACE RELAY               ░
+            ░              STATION K-7                 ░
+            ░                                          ░
+            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+                   ╔══════════════════════════╗
+                   ║  TRANSMISSION LOG        ║
+                   ║  YEAR  2347.08.19        ║
+                   ║  STATUS: ANOMALY         ║
+                   ╚══════════════════════════╝
+
+  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ·
+
+      Something is broadcasting from the outer perimeter.
+      It has been broadcasting for 11 days.
+      No one sent it.
+
+  ·  ˙  ·  ·  ˙  ·  ˙  ·  ·  ·  ˙  ·  ·  ·  ˙  ·  ˙  ·  ·  ·  ˙  ·  ·  ·
+
+—type:investigate

@@ -1,0 +1,5 @@
+青铜器上往往也刻着文字和语言，这就是我们说的“大语言模型”。
+They wrote a lot of text on the model, that's what we called a "Large Langauage Model".(LLM)
+
+在这个基础上，这个大语言模型还可以炖肉。因此你也可以叫它“大人肉模型"
+On top of that, you can even cook meat (human) in it, so you can also call it "Large Meet Model" (LMM).

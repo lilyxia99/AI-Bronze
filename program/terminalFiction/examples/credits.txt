@@ -1,0 +1,36 @@
+
+  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ˙  ·  ·  ·
+
+
+
+                    ╔═══════════════════════════════╗
+                    ║                               ║
+                    ║        L A S T                ║
+                    ║        S I G N A L            ║
+                    ║                               ║
+                    ╚═══════════════════════════════╝
+
+
+             A short story for the terminal.
+
+
+             ─────────────────────────────────────
+
+
+             Station K-7 was decommissioned in 2347.
+             Dr. Yuna Park was never found.
+             The signal stopped on its own, two days
+             after you read this message.
+
+
+             No one knows what answered.
+
+
+             ─────────────────────────────────────
+
+
+               Built with  terminalFiction
+               github.com/you/terminalFiction
+
+
+  ·  ˙  ·  ·  ˙  ·  ˙  ·  ·  ·  ˙  ·  ·  ·  ˙  ·  ˙  ·  ·  ·  ˙  ·  ·  ·

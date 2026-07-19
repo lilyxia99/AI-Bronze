@@ -1,0 +1,2 @@
+青铜器上往往也刻着文字和语言，这就是我们说的“大语言模型”。
+They wrote a lot of text on the model, that's what we called a "Large Langauage Model".(LLM)

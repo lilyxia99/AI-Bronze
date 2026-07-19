@@ -1,0 +1,16 @@
+# terminalFiction — Example Story: "LAST SIGNAL"
+#
+# Format:  entry → entry-transition.py → entry → ...
+#
+# .txt  = scene file (animated if multi-frame, static if single frame)
+# .py   = special script (defines a run() function)
+# -x.py = use this transition AFTER the preceding scene
+#
+# This example:
+#   intro.txt  → (default transition) →
+#   station.txt (3-frame animation) → (static_glitch.py transition) →
+#   message.txt → (default transition) →
+#   choice.py  (interactive special script) →
+#   credits.txt
+
+intro.txt → station.txt-static_glitch.py → message.txt → choice.py → credits.txt
