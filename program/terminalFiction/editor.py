@@ -19,7 +19,7 @@ TRANSITION_MARKER = "—type:"
 
 # ── Default save directory ─────────────────────────────────────────────────
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_SAVE_DIR = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", "Assets"))
+DEFAULT_SAVE_DIR = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", "Assets","asciiart"))
 # ──────────────────────────────────────────────────────────────────────────
 
 
