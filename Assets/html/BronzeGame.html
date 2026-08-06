@@ -147,6 +147,49 @@ _____________________
         \_  1@110|   *
           \_____/        #
 </pre>
+
+<pre class="hide" id="bu-flip">
+                   _------- 1
+                 _/_#@.  \   11--
+               _/ \ \  #. 0    1 \
+              /  /*\ \   #  \   0 \
+             /  /  *\ \   @  |   1 |
+            |  |  ?  \ \  .  |   1 |
+     _      |  | :    | | #  0   0 |
+    | \_________  ;  _| | @  |   1 |
+   |-\___       \---/ | | .  /   0 /
+   |/\___     _       / | #  0  1_/
+    \ \___   /     __/ / @  /  0/
+     \___ __/  ___/@/_/  .  0  1
+     @@@@/____/@@@@   \______/
+      @@@@@@@@@@@@  @@
+</pre>
+<pre class="hide" id="li-flip">
+          __/----\_
+     __ _/#    // 011.
+    <__/*%    || 1@OO\1
+    /   $    // 1OO /@\==0
+   |___%/   ||1/| |  \ 1_ _
+ __/#//    // 0/   \  /*/ _0
+<__@@      || 1|  *    / /
+   \#\\     \\ 0\        \\
+    \  %\    || 1==O  *  /|
+   _/\_  &%   \\1\_     * |
+  <____\___\$  \/11\*   | |
+           \_____/   \___/    
+</pre>
+<pre class="hide" id="jia-flip">
+\_
+  \-\    __/-%|
+     |--/  * %|--O   ___________
+     |     * %|-----/      _____0
+     |     * %|           ------0
+ _/-/ --\__* %|--O    ___ ------0
+/          \-%|---\______0----0  @@
+                 @ @@@@@@@@@@@@ @
+                        @@@@
+                              @@
+</pre>
     </div>
     
 
@@ -229,6 +272,12 @@ _____________________
         margin: 0;
         align-content: center;
         justify-self: center;
+        /* grid item 默认 align-self:stretch，会把高度撑成/压成所在行的固定高度，
+           配合 .active 的 overflow:hidden 就会把偏高的 flip 内容裁掉一块。
+           改成 center，让它按内容实际高度显示，需要多高就多高，同时还在原来的
+           位置居中，不会被行高裁切，也不会像 align-self:start 那样往上跑。 */
+        align-self: center;
+        overflow: visible;
     }
 
     /* 方鼎：占据中心 2×2 区域（第2行第2列到第3行第3列）；圆鼎第三幕不出现（见下面 #round-ding） */
@@ -344,7 +393,7 @@ _____________________
     // ============================================================
 
     // 测试开关：把这里改成 1、2 或 3，即可从对应幕的开头开始。
-    const TEST_START_ACT = 1;
+    const TEST_START_ACT = 3;
 
     // 每一幕开头对应的台词位置。跳幕时必须一起更新，避免显示正确但台词错位。
     const ACT_START_TEXT_INDEX = {
@@ -608,19 +657,151 @@ _____________________
         });
 
         act3Ready = false; // 重置状态
+
+        // 提前把每个有 -flip 的青铜器的框，预留成"变身后"的尺寸，这样变身
+        // 前后框的大小是一样的，ding-container 的高度也就不会跟着跳动。
+        // 需要等 grid 布局真正生效之后再量，所以放到下一帧执行。
+        requestAnimationFrame(() => {
+            dings.forEach(el => {
+                const flip = document.getElementById(el.id + '-flip');
+                if (flip) reserveFlipSize(el, flip);
+            });
+        });
     }
 
-    // 点击一个青铜器，把它的内容替换成 id + "-flip" 对应元素里的内容
+    // 把 el 的最小宽高，预留成它切换到 flip 内容之后应有的大小（用 flip 的文字，
+    // 按最终展示时的样式量出实际尺寸），但不改变 el 当前显示的内容。
+    function reserveFlipSize(el, flip){
+        const originalHTML = el.innerHTML;
+        const wasActive = el.classList.contains('active');
+        const wasFlipped = el.classList.contains('flipped');
+
+        el.style.visibility = 'hidden'; // 量尺寸的过程不能被用户看到
+        el.style.minWidth = '';
+        el.style.minHeight = '';
+        el.classList.add('active'); // 用跟最终展示一样的排版规则（pre-wrap 等）来量
+        el.style.fontSize = BASE_FONT_SIZE + 'px';
+        el.textContent = flip.textContent;
+
+        const rect = el.getBoundingClientRect();
+        el.style.minWidth = Math.ceil(rect.width) + 'px';
+        el.style.minHeight = Math.ceil(rect.height) + 'px';
+
+        // 量完之后还原回变身前的样子，只留下 min-width/min-height 这两个预留值
+        el.innerHTML = originalHTML;
+        if (!wasActive) el.classList.remove('active');
+        if (!wasFlipped) el.classList.remove('flipped');
+        el.style.visibility = '';
+    }
+
+    //替换动画
+
+    // 每个字符总共变化几次——最后一次一定是最终目标字符，前面几次是随机的过渡字符。
+    // 改成 1 就是"直接变成目标字符，完全不闪"；改成 2 就是"先跳一次过渡字符，再定形"。
+    const FLIP_STEPS = 2;
+    // 同一个字符自己的两次变化之间停顿多久（毫秒）。调大一点就会有明显的"卡顿感"。
+    const FLIP_STEP_PAUSE_MS = 90;
+    // 每隔多久（毫秒）启动一批新的字符开始变化——决定了整体是快是慢
+    const FLIP_TICK_MS = 40;
+    // 每一批同时启动几个新字符——数字越大，同一时间在变的字符越多
+    const FLIP_CHARS_PER_TICK = 4;
+    // 过渡阶段随机显示的候选字符
+    const FLIP_GLYPHS = '!<>-_\\/[]{}=+*^?#01';
+
+    // 把 el 当前显示的文字，逐字符替换成 targetText：每隔 FLIP_TICK_MS 启动一批新
+    // 字符，每个字符各自跑完 FLIP_STEPS 次变化（每次间隔 FLIP_STEP_PAUSE_MS，最后
+    // 一次固定是目标字符），直到全部变成目标文字。
+    // 按行对齐做 padding，避免两段文字长度差很多时拼接出一整行超长文本，
+    // 把 pre 的宽度撑爆，导致青铜器看起来像"挪动"了位置。
+    function scrambleTextTo(el, targetText, onDone){
+        const fromLines = el.textContent.split('\n');
+        const toLines = targetText.split('\n');
+        const lineCount = Math.max(fromLines.length, toLines.length);
+
+        const fromPadded = [];
+        const toPadded = [];
+        for (let i = 0; i < lineCount; i++) {
+            const f = fromLines[i] || '';
+            const t = toLines[i] || '';
+            const w = Math.max(f.length, t.length);
+            fromPadded.push(f.padEnd(w, ' '));
+            toPadded.push(t.padEnd(w, ' '));
+        }
+        const from = fromPadded.join('\n');
+        const to = toPadded.join('\n');
+
+        // 只需要改变"确实不一样"的位置；顺序打乱，让哪里先变看起来是随机的
+        const pending = [];
+        for (let i = 0; i < from.length; i++) {
+            if (from[i] !== to[i]) pending.push(i);
+        }
+        for (let i = pending.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pending[i], pending[j]] = [pending[j], pending[i]];
+        }
+
+        if (pending.length === 0) {
+            if (onDone) onDone();
+            return;
+        }
+
+        const current = from.split('');
+        let runningChars = 0; // 还有几个字符没走完自己的 FLIP_STEPS
+
+        function randomGlyph(){
+            return FLIP_GLYPHS[Math.floor(Math.random() * FLIP_GLYPHS.length)];
+        }
+
+        function maybeFinish(){
+            if (pending.length === 0 && runningChars === 0 && onDone) onDone();
+        }
+
+        // 让一个字符自己走完 FLIP_STEPS 次变化
+        function runChar(idx){
+            runningChars++;
+            let step = 0;
+            function nextStep(){
+                step++;
+                current[idx] = (step < FLIP_STEPS) ? randomGlyph() : to[idx];
+                el.textContent = current.join('');
+                if (step < FLIP_STEPS) {
+                    setTimeout(nextStep, FLIP_STEP_PAUSE_MS);
+                } else {
+                    runningChars--;
+                    maybeFinish();
+                }
+            }
+            nextStep();
+        }
+
+        function tick(){
+            for (let n = 0; n < FLIP_CHARS_PER_TICK && pending.length; n++) {
+                runChar(pending.shift());
+            }
+            if (pending.length) {
+                setTimeout(tick, FLIP_TICK_MS);
+            }
+        }
+
+        tick();
+    }
+
+    // 点击一个青铜器，把它的内容逐字替换成 id + "-flip" 对应元素里的内容
     // （比如点击 #pan 会被替换成 #pan-flip 里的内容）。没有对应 -flip 元素的
     // 青铜器（比如方鼎），保持原来展示台词的逻辑。
     function handleAct3Click(el){
         const flip = document.getElementById(el.id + '-flip');
         if (flip) {
             if (!el.classList.contains('flipped')) {
-                el.innerHTML = flip.innerHTML;
                 el.classList.add('flipped');
                 el.classList.add('active'); // fitBoxToViewport 只对 active 的元素生效
-                fitBoxToViewport(el);
+                // 提前把字号定死，跟 fitBoxToViewport 最终用的字号一致——
+                // 不然浏览器默认的 monospace 字号（比如 13px）会在动画结束、
+                // fitBoxToViewport 把它改成 BASE_FONT_SIZE 时突然跳一下，
+                // 看起来就像"缩小"了一下
+                el.style.fontSize = BASE_FONT_SIZE + 'px';
+
+                scrambleTextTo(el, flip.textContent, () => fitBoxToViewport(el));
             }
             return;
         }
