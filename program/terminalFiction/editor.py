@@ -68,6 +68,28 @@ def _curses_edit(stdscr, existing):
     except curses.error:
         pass
 
+    # Line-number gutter color: best-effort guess of dark/light terminal
+    # background via COLORFGBG (many terminals set it); falls back to a
+    # plain dim attribute when it can't be determined or colors aren't available.
+    num_attr = curses.A_DIM
+    try:
+        if curses.has_colors():
+            colorfgbg = os.environ.get("COLORFGBG", "")
+            bg = None
+            if ";" in colorfgbg:
+                try:
+                    bg = int(colorfgbg.split(";")[-1])
+                except ValueError:
+                    bg = None
+            if bg in (0, 8):
+                curses.init_pair(1, curses.COLOR_GREEN, -1)
+                num_attr = curses.color_pair(1) | curses.A_DIM
+            elif bg in (7, 15):
+                curses.init_pair(1, curses.COLOR_BLACK, -1)
+                num_attr = curses.color_pair(1) | curses.A_DIM
+    except curses.error:
+        pass
+
     # Parse existing content into mutable grid (list of list of chars)
     raw_lines = existing.split("\n") if existing else [""]
     grid = [list(line) for line in raw_lines]
@@ -77,6 +99,7 @@ def _curses_edit(stdscr, existing):
     scroll_top = 0
     aborted = False
     overwrite = True  # Start in Overwrite mode; Ctrl+O toggles to Insert mode
+    cursor_stays = False  # Ctrl+F toggles: keep cursor in place after typing a char
 
     def ensure_row(r):
         while len(grid) <= r:
@@ -109,21 +132,46 @@ def _curses_edit(stdscr, existing):
 
         stdscr.erase()
 
-        # Draw grid rows
+        # Draw grid rows, overlaying line numbers on each row's leading
+        # blank run (purely visual — never written into the grid).
+        num_width = len(str(len(grid))) if grid else 1
         for sy in range(edit_h):
             gy = sy + scroll_top
-            line_str = "".join(grid[gy]) if gy < len(grid) else ""
+            row = grid[gy] if gy < len(grid) else []
+            full_str = "".join(row)
+
+            avail = 0
+            for c in range(num_width):
+                if c < len(row):
+                    if row[c] == ' ':
+                        avail += 1
+                    else:
+                        break
+                else:
+                    avail += 1  # past end of row counts as implicit blank
+
+            shown = str(gy + 1).rjust(num_width)[num_width - avail:] if avail else ""
+
             try:
-                stdscr.addstr(sy, 0, line_str[:w - 1])
+                if shown:
+                    shown_disp = shown[:w - 1]
+                    stdscr.addstr(sy, 0, shown_disp, num_attr)
+                    rest = full_str[avail:][:max(0, w - 1 - len(shown_disp))]
+                    if rest:
+                        stdscr.addstr(sy, len(shown_disp), rest)
+                else:
+                    stdscr.addstr(sy, 0, full_str[:w - 1])
             except curses.error:
                 pass
 
         # Status bar
         sy_status = h - STATUS_LINES
         mode_label = "Overwrite" if overwrite else "Insert"
+        cursor_label = "Cursor:Fixed" if cursor_stays else "Cursor:Advance"
         hint = (
             f" Ln {cur_row+1} Col {cur_col+1}"
-            f"  │  {mode_label}  ^O=toggle  ^S=done  ^X=abort  ^D=del-line"
+            f"  │  {mode_label}  ^O=toggle  {cursor_label}  ^F=toggle"
+            f"  Tab/⇧Tab=shift  ^S=done  ^X=abort  ^D=del-line"
         )
         try:
             stdscr.addstr(sy_status, 0, "─" * (w - 1))
@@ -184,6 +232,13 @@ def _curses_edit(stdscr, existing):
                 cur_row += edit_h - 1
                 ensure_row(cur_row)
 
+            elif key == curses.KEY_BTAB:  # Shift+Tab — shift every line left by one space
+                for r in range(len(grid)):
+                    if grid[r]:
+                        grid[r].pop(0)
+                if cur_col > 0:
+                    cur_col -= 1
+
             elif key in (curses.KEY_BACKSPACE, 127):
                 if cur_col > 0:
                     target = cur_col - 1
@@ -230,6 +285,14 @@ def _curses_edit(stdscr, existing):
             elif ch == '\x0f':  # Ctrl+O — toggle mode
                 overwrite = not overwrite
 
+            elif ch == '\x06':  # Ctrl+F — toggle cursor-stays-in-place after typing
+                cursor_stays = not cursor_stays
+
+            elif ch == '\t':  # Tab — shift every line in the frame right by one space
+                for r in range(len(grid)):
+                    grid[r].insert(0, ' ')
+                cur_col += 1
+
             elif ch == '\x04':  # Ctrl+D — delete current line
                 ensure_row(cur_row)
                 if len(grid) > 1:
@@ -273,7 +336,8 @@ def _curses_edit(stdscr, existing):
                 else:
                     pad_to_col(cur_row, cur_col)
                     grid[cur_row].insert(cur_col, ch)
-                cur_col += 1
+                if not cursor_stays:
+                    cur_col += 1
 
     if aborted:
         return None
