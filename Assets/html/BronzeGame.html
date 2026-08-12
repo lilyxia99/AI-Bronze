@@ -326,7 +326,6 @@ _____________________
         height: auto !important;
         z-index: auto !important; /* 取消 .bronze 默认的 z-index:-1，避免逃逸到页面层级 */
         margin: 0;
-        align-content: center;
         justify-self: center;
         /* grid item 默认 align-self:stretch，会把高度撑成/压成所在行的固定高度，
            配合 .active 的 overflow:hidden 就会把偏高的 flip 内容裁掉一块。
@@ -334,6 +333,13 @@ _____________________
            位置居中，不会被行高裁切，也不会像 align-self:start 那样往上跑。 */
         align-self: center;
         overflow: visible;
+        /* reserveFlipSize 会提前把 min-width/min-height 撑到"变身后"的尺寸，
+           避免点击时框本身跳动；但 <pre> 默认文字左上对齐，框被撑大之后文字
+           就会贴在左上角，看起来不居中。这里用 flex 把文字内容作为整体居中
+           （不能用 text-align:center，那样会逐行居中，破坏 ascii 图案的字符对齐）。 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     /* 方鼎：占据中心 2×2 区域（第2行第2列到第3行第3列）；圆鼎第三幕不出现（见下面 #round-ding） */
@@ -764,27 +770,41 @@ _____________________
     // 过渡阶段随机显示的候选字符
     const FLIP_GLYPHS = '!<>-_\\/[]{}=+*^?#01';
 
+    // 把两段文字各自居中放进一个共同的"画布"里：画布宽/高取两者中较大的那个，
+    // 原文和目标文字各自按自己的实际宽高在画布里上下左右均匀补空格/空行。
+    // 这样两段文字补完之后宽高完全一致，且图案的视觉中心始终落在画布中心——
+    // 不会像之前那样只在右/下方补空白，导致图案的视觉中心被推向左上角，
+    // 点击瞬间就"跳"向左边，动画才开始真正变身。
+    function centerLinesInCanvas(lines, canvasWidth, canvasHeight){
+        const ownWidth = Math.max(...lines.map(l => l.length));
+        const leftPad = Math.floor((canvasWidth - ownWidth) / 2);
+        const rightPad = canvasWidth - ownWidth - leftPad;
+        const topPad = Math.floor((canvasHeight - lines.length) / 2);
+        const bottomPad = canvasHeight - lines.length - topPad;
+
+        const blankLine = ' '.repeat(canvasWidth);
+        const body = lines.map(l => ' '.repeat(leftPad) + l.padEnd(ownWidth, ' ') + ' '.repeat(rightPad));
+        return Array(topPad).fill(blankLine)
+            .concat(body)
+            .concat(Array(bottomPad).fill(blankLine))
+            .join('\n');
+    }
+
     // 把 el 当前显示的文字，逐字符替换成 targetText：每隔 FLIP_TICK_MS 启动一批新
     // 字符，每个字符各自跑完 FLIP_STEPS 次变化（每次间隔 FLIP_STEP_PAUSE_MS，最后
     // 一次固定是目标字符），直到全部变成目标文字。
-    // 按行对齐做 padding，避免两段文字长度差很多时拼接出一整行超长文本，
-    // 把 pre 的宽度撑爆，导致青铜器看起来像"挪动"了位置。
     function scrambleTextTo(el, targetText, onDone){
         const fromLines = el.textContent.split('\n');
         const toLines = targetText.split('\n');
-        const lineCount = Math.max(fromLines.length, toLines.length);
 
-        const fromPadded = [];
-        const toPadded = [];
-        for (let i = 0; i < lineCount; i++) {
-            const f = fromLines[i] || '';
-            const t = toLines[i] || '';
-            const w = Math.max(f.length, t.length);
-            fromPadded.push(f.padEnd(w, ' '));
-            toPadded.push(t.padEnd(w, ' '));
-        }
-        const from = fromPadded.join('\n');
-        const to = toPadded.join('\n');
+        const canvasWidth = Math.max(
+            Math.max(...fromLines.map(l => l.length)),
+            Math.max(...toLines.map(l => l.length))
+        );
+        const canvasHeight = Math.max(fromLines.length, toLines.length);
+
+        const from = centerLinesInCanvas(fromLines, canvasWidth, canvasHeight);
+        const to = centerLinesInCanvas(toLines, canvasWidth, canvasHeight);
 
         // 只需要改变"确实不一样"的位置；顺序打乱，让哪里先变看起来是随机的
         const pending = [];
