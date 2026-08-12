@@ -455,7 +455,7 @@ _____________________
     // ============================================================
 
     // 测试开关：把这里改成 1、2 或 3，即可从对应幕的开头开始。
-    const TEST_START_ACT = 1;
+    const TEST_START_ACT = 3;
 
     // 每一幕开头对应的台词位置。跳幕时必须一起更新，避免显示正确但台词错位。
     const ACT_START_TEXT_INDEX = {
@@ -729,10 +729,10 @@ _____________________
         });
     }
 
-    // 把 el 的最小宽高，预留成它切换到 flip 内容之后应有的大小（用 flip 的文字，
-    // 按最终展示时的样式量出实际尺寸），但不改变 el 当前显示的内容。
+    // 把 el 的最小宽高预留成 flip 后的尺寸，并把当前青铜器也先补进同一块
+    // 字符画布。这样点击后只会替换字符，原图的行列坐标不会再发生一次跳变。
     function reserveFlipSize(el, flip){
-        const originalHTML = el.innerHTML;
+        const originalText = el.textContent;
         const wasActive = el.classList.contains('active');
         const wasFlipped = el.classList.contains('flipped');
 
@@ -747,8 +747,17 @@ _____________________
         el.style.minWidth = Math.ceil(rect.width) + 'px';
         el.style.minHeight = Math.ceil(rect.height) + 'px';
 
-        // 量完之后还原回变身前的样子，只留下 min-width/min-height 这两个预留值
-        el.innerHTML = originalHTML;
+        // 量完之后保留原本的图案，但按与 flip 相同的画布宽高补齐。
+        // scrambleTextTo() 点击后会得到完全相同的 from 画布，因此不会再改动
+        // 原图的视觉位置。
+        const fromLines = originalText.split('\n');
+        const flipLines = flip.textContent.split('\n');
+        const canvasWidth = Math.max(
+            Math.max(...fromLines.map(line => line.length)),
+            Math.max(...flipLines.map(line => line.length))
+        );
+        const canvasHeight = Math.max(fromLines.length, flipLines.length);
+        el.textContent = centerLinesInCanvas(fromLines, canvasWidth, canvasHeight);
         if (!wasActive) el.classList.remove('active');
         if (!wasFlipped) el.classList.remove('flipped');
         el.style.visibility = '';
@@ -775,9 +784,13 @@ _____________________
     // 点击瞬间就"跳"向左边，动画才开始真正变身。
     function centerLinesInCanvas(lines, canvasWidth, canvasHeight){
         const ownWidth = Math.max(...lines.map(l => l.length));
-        const leftPad = Math.floor((canvasWidth - ownWidth) / 2);
+        // 宽度差为奇数时同理：多出的空列放在左边，避免原图在 flip
+        // 开始时视觉上往左跳。
+        const leftPad = Math.ceil((canvasWidth - ownWidth) / 2);
         const rightPad = canvasWidth - ownWidth - leftPad;
-        const topPad = Math.floor((canvasHeight - lines.length) / 2);
+        // 高度差是奇数行时，flex 的视觉居中会把那半行偏差表现为原图轻微上移。
+        // 把多出的空行优先放在上方，使点击后开始逐字替换的原图不会向上跳。
+        const topPad = Math.ceil((canvasHeight - lines.length) / 2);
         const bottomPad = canvasHeight - lines.length - topPad;
 
         const blankLine = ' '.repeat(canvasWidth);
