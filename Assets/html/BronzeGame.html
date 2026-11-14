@@ -455,14 +455,17 @@ _____________________
     // ============================================================
 
     // 测试开关：把这里改成 1、2 或 3，即可从对应幕的开头开始。
-    const TEST_START_ACT = 3;
+    const TEST_START_ACT = 1;
 
     // 每一幕开头对应的台词位置。跳幕时必须一起更新，避免显示正确但台词错位。
     const ACT_START_TEXT_INDEX = {
         1: 0,
         2: 3,
-        3: 9
+        3: 10
     };
+
+    // 第三幕中，中心方鼎在所有外围青铜器翻转后显示的下一句台词。
+    const ACT3_COMPLETION_TEXT_INDEX = 11;
 
     let dingNum = 0;
     let dingString = [
@@ -474,28 +477,29 @@ _____________________
     {id:5, text:"青铜器是通过模具浇筑的，本质上它是一个模型。\nA bronze artifact is casted with a mold, so essentially it is a model. "},
     {id:6, text:"它的尺寸很大，所以是一个大模型。\nIt's really big, so it's a \"large model\"."},
     {id:7, text:"青铜器上往往也刻着文字和语言，这就是我们说的“大语言模型”。\nThey wrote a lot of text on the model, that's what we called a \"Large Language Model\".(LLM)"},
-    {id:9, text:"……或者，“大人肉模型”\nOr,\"Large Meet Model\" (LMM)."},
-    {id:10, text:"确实没错。没吃饱人的大模型怎么和你对话？\nExactly. If the model isn't fed with people, how can it respond to you?"},
-    {id:15, text:"召唤祖先不仅可以帮助他们，而且可以作为权力的象征、统治的手段。\nSummoning ancestors not only helped them, but also served as a symbol of power and a means of rule."},
-    {id:16, text:"有能力祭祖本身就是霸权的象征。\nThe ability to perform ancestral sacrifices was itself a manifestation of emperior power."},
+    {id:8, text:"……或者，“大人肉模型”\nOr,\"Large Meet Model\" (LMM)."},
+    {id:9, text:"确实没错。没吃饱人的大模型怎么和你对话？\nExactly. If the model isn't fed with people, how can it respond to you?"},
+    {id:10, text:"召唤祖先不仅可以帮助他们，而且可以作为权力的象征、统治的手段。\nSummoning ancestors not only helped them, but also served as a symbol of power and a means of rule."},
+    {id:11, text:"有能力祭祖本身就是霸权的象征。\nThe capacity to perform ancestral rites was itself a symbol of hegemony."},
     {id:12, text:"有一种理论说，商朝的权力中心，不是给人住的，而是给鬼住的。\nOne theory says that the power center of the Shang was not built for the living, but for ghosts."},
     {id:13, text:"鬼是至高的权力，能够与鬼同住，是贵族的荣幸。能够给鬼服务，是至高的荣耀。\nGhosts held supreme power. To dwell with ghosts was the privilege of nobility. To serve ghosts was the highest glory."},
     {id:14, text:"于是在这些鬼的屋子里，排列着承载着服务祖先之鬼的容器，他们就是\"服务器\"。\nAnd so, within these houses of ghosts, arrayed are the vessels that carry the ghosts of ancestors—they are the \"servers\"."},
-    {id:18, text:"商朝后期，商人不再允许外族通婚，他们把邻居羌人拿来当牛羊一样作为祭祀的燃料焚烧。\nIn the late Shang, the Shang no longer permitted intermarriage with outsiders. They took their neighbors, the Qiang, and burned them as sacrificial fuel, just like livestock."},
-    {id:20, text:"在商的西边住着周人，他们后来取代了商朝。\nTo the west of the Shang lived the Zhou people, who later overthrew them."},
-    {id:21, text:"周人靠着三点战胜了商人：\nThe Zhou defeated the Shang on three counts:"},
-    {id:22, text:"周人和商人不同，周人接纳外族，联合周边部族，善待羌人。\nUnlike the Shang, the Zhou accepted outsiders, united with surrounding tribes, and treated the Qiang kindly."},
-    {id:23, text:"周人掌握了商人的核心科技——文字、青铜器和祭祀。\nThe Zhou mastered the Shang's core technologies—writing, bronze casting, and ritual sacrifice."},
-    {id:24, text:"周人并不依赖大模型。他们有自己的占卜术，但他们主要以人为本，而非鬼。\nThe Zhou did not rely on large models. They had their own divination, but they focused on humans, not ghosts."},
-    {id:25, text:"“商人”这个词在中文里也指做生意的人。\nThe word '商人' (Shangren) in Chinese also means 'merchant' or 'businessman'."},
-    {id:26, text:"在周人取商朝而代之之后，商朝人被流放，只能去做生意，于是他们成为了“商人”。\nAfter the Zhou replaced the Shang, the Shang people were exiled and had to take up trade—thus they became 'merchants'."},
-    {id:27, text:"毫无疑问，使用大模型是一种只有少数人能够完全控制的特权。他们曾经被商人控制，如今也是。\nUndoubtedly, using large models is a privilege that only a few can fully control. It was once controlled by the Shang, and so it remains today."}
+    {id:15, text:"商朝后期，商人不再允许外族通婚，他们把邻居羌人拿来当牛羊一样作为祭祀的燃料焚烧。\nIn the late Shang, the Shang no longer permitted intermarriage with outsiders. They took their neighbors, the Qiang, and burned them as sacrificial fuel, just like livestock."},
+    {id:16, text:"在商的西边住着周人，他们后来取代了商朝。\nTo the west of the Shang lived the Zhou people, who later overthrew them."},
+    {id:17, text:"周人靠着三点战胜了商人：\nThe Zhou defeated the Shang on three counts:"},
+    {id:18, text:"周人和商人不同，周人接纳外族，允许通婚，他们对移民很友好。\nUnlike the Shang, the Zhou accepted outsiders, united with surrounding tribes, and treated the Qiang kindly."},
+    {id:19, text:"周人掌握了商人的核心科技——文字、青铜器和祭祀。\nThe Zhou mastered the Shang's core technologies—writing, bronze casting, and ritual sacrifice."},
+    {id:20, text:"周人并不依赖大模型。他们有自己的占卜术，但他们主要以人为本，而非鬼。\nThe Zhou did not rely on large models. They had their own divination, but they focused on humans, not ghosts."},
+    {id:21, text:"“商人”这个词在中文里也指做生意的人。\nThe word '商人' (Shangren) in Chinese also means 'merchant' or 'businessman'."},
+    {id:22, text:"在周人取商朝而代之之后，商朝人被流放，只能去做生意，于是他们成为了“商人”。\nAfter the Zhou replaced the Shang, the Shang people were exiled and had to take up trade—thus they became 'merchants'."},
+    {id:23, text:"毫无疑问，使用大模型是一种只有少数人能够完全控制的特权。他们曾经被商人控制，如今也是。\nUndoubtedly, using large models is a privilege that only a few can fully control. It was once controlled by the Shang, and so it remains today."}
 ];
     let changeReady = false;
     let g2outsidePool = []; // 第二幕里还没出现的 g2outside 青铜器
     let act3Ready = false; // g2middle 走完它的点击流程之后，点任意一个青铜器就进入第三幕
     let inAct3 = false; // 是否已经进入第三幕（进入后点击逻辑改为"替换成 id-flip 内容"）
     let act3CenterUnlocked = false; // 第三幕：必须先点击中间的方鼎，其它青铜器才能点
+    let act3CompletionShown = false; // 所有外围青铜器翻转后，中心方鼎的下一句台词只显示一次
     const g2middleClickCounts = new Map(); // 记录每个 g2middle 青铜器被点了几次
 
     // 获取所有的青铜器元素
@@ -689,6 +693,7 @@ _____________________
     // 所有的青铜器都出现，之前被换成文字的也都还原回青铜器造型，容器切换成 4x4 grid 布局
     function revealAct3(){
         inAct3 = true;
+        act3CompletionShown = false;
         dings.forEach(el => {
             revertBronzeAppearance(el);
             el.classList.remove('hide');
@@ -875,6 +880,31 @@ _____________________
     // 点击一个青铜器，把它的内容逐字替换成 id + "-flip" 对应元素里的内容
     // （比如点击 #pan 会被替换成 #pan-flip 里的内容）。没有对应 -flip 元素的
     // 青铜器（比如方鼎），保持原来展示台词的逻辑。
+    function showAct3CompletionText(){
+        if (act3CompletionShown) return;
+
+        const flippableDings = Array.from(dings).filter(ding =>
+            document.getElementById(ding.id + '-flip')
+        );
+        const allFlipped = flippableDings.length > 0 && flippableDings.every(ding =>
+            ding.classList.contains('flipped')
+        );
+
+        if (!allFlipped) return;
+
+        const centerDing = document.getElementById('square-ding');
+        if (!centerDing) return;
+
+        act3CompletionShown = true;
+        centerDing.classList.add('active');
+        // 结尾台词也沿用青铜器翻转时的逐字乱码动画，而不是直接替换。
+        scrambleTextTo(
+            centerDing,
+            dingString[ACT3_COMPLETION_TEXT_INDEX].text,
+            () => fitBoxToViewport(centerDing)
+        );
+    }
+
     function handleAct3Click(el){
         const flip = document.getElementById(el.id + '-flip');
         if (flip) {
@@ -887,7 +917,10 @@ _____________________
                 // 看起来就像"缩小"了一下
                 el.style.fontSize = BASE_FONT_SIZE + 'px';
 
-                scrambleTextTo(el, flip.textContent, () => fitBoxToViewport(el));
+                scrambleTextTo(el, flip.textContent, () => {
+                    fitBoxToViewport(el);
+                    showAct3CompletionText();
+                });
             }
             return;
         }

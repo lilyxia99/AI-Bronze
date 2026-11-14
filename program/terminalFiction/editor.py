@@ -57,8 +57,8 @@ def preview(frames, fps=2.0):
         pass
 
 
-def _curses_edit(stdscr, existing):
-    """Curses-based frame editor with Unicode / CJK support."""
+def _curses_edit(stdscr, frames, start_index, save_callback):
+    """Edit a frame sequence. Onion-skin cells are display-only overlays."""
     curses.use_default_colors()
     # raw() lets Ctrl+S reach us instead of being swallowed by terminal flow control.
     # We handle Ctrl+C manually as abort since raw() disables SIGINT.
@@ -74,6 +74,10 @@ def _curses_edit(stdscr, existing):
     num_attr = curses.A_DIM
     try:
         if curses.has_colors():
+            # Onion-skin references. COLOR_RED/COLOR_CYAN remain readable on
+            # both common dark and light terminal themes when dimmed below.
+            curses.init_pair(2, curses.COLOR_RED, -1)
+            curses.init_pair(3, curses.COLOR_CYAN, -1)
             colorfgbg = os.environ.get("COLORFGBG", "")
             bg = None
             if ";" in colorfgbg:
@@ -90,16 +94,45 @@ def _curses_edit(stdscr, existing):
     except curses.error:
         pass
 
-    # Parse existing content into mutable grid (list of list of chars)
-    raw_lines = existing.split("\n") if existing else [""]
-    grid = [list(line) for line in raw_lines]
-
+    frame_index = start_index
+    grid = []
     cur_row = 0
     cur_col = 0
     scroll_top = 0
-    aborted = False
     overwrite = True  # Start in Overwrite mode; Ctrl+O toggles to Insert mode
     cursor_stays = False  # Ctrl+F toggles: keep cursor in place after typing a char
+    onion_enabled = False  # Ctrl+G
+    onion_range = 1        # Ctrl+W / Ctrl+E
+
+    def load_frame(index):
+        nonlocal grid, cur_row, cur_col, scroll_top
+        raw_lines = frames[index].split("\n") if frames[index] else [""]
+        grid = [list(line) for line in raw_lines]
+        cur_row = cur_col = scroll_top = 0
+
+    def commit_frame():
+        frames[frame_index] = "\n".join("".join(row) for row in grid)
+
+    def ghost_at(row, col):
+        """Return ghost character and color pair for an otherwise blank cell."""
+        if not onion_enabled:
+            return None
+        # Previous frames are light red; following frames are light blue.
+        # Nearest frame wins, so the reference is easy to read.
+        for distance in range(1, onion_range + 1):
+            previous = frame_index - distance
+            if previous >= 0:
+                lines = frames[previous].split("\n")
+                if row < len(lines) and col < len(lines[row]) and lines[row][col] != " ":
+                    return lines[row][col], 2
+            following = frame_index + distance
+            if following < len(frames):
+                lines = frames[following].split("\n")
+                if row < len(lines) and col < len(lines[row]) and lines[row][col] != " ":
+                    return lines[row][col], 3
+        return None
+
+    load_frame(frame_index)
 
     def ensure_row(r):
         while len(grid) <= r:
@@ -164,14 +197,28 @@ def _curses_edit(stdscr, existing):
             except curses.error:
                 pass
 
+            # Draw references only in blank cells. They never modify ``grid``;
+            # typing at their position therefore naturally replaces the overlay.
+            if onion_enabled:
+                for gx in range(w - 1):
+                    if gx < len(row) and row[gx] != " ":
+                        continue
+                    ghost = ghost_at(gy, gx)
+                    if ghost:
+                        try:
+                            stdscr.addstr(sy, gx, ghost[0], curses.color_pair(ghost[1]) | curses.A_DIM)
+                        except curses.error:
+                            pass
+
         # Status bar
         sy_status = h - STATUS_LINES
         mode_label = "Overwrite" if overwrite else "Insert"
         cursor_label = "Cursor:Fixed" if cursor_stays else "Cursor:Advance"
         hint = (
-            f" Ln {cur_row+1} Col {cur_col+1}"
+            f" Frame {frame_index+1}/{len(frames)}  Ln {cur_row+1} Col {cur_col+1}"
             f"  │  {mode_label}  ^O=toggle  {cursor_label}  ^F=toggle"
-            f"  Tab/⇧Tab=shift  ^S=done  ^X=abort  ^D=del-line"
+            f"  Onion:{'on' if onion_enabled else 'off'}({onion_range}) ^G ^W/^E"
+            f"  ^P/^N=frame  ^S=save  ^Q=done  ^X=discard frame"
         )
         try:
             stdscr.addstr(sy_status, 0, "─" * (w - 1))
@@ -273,20 +320,49 @@ def _curses_edit(stdscr, existing):
         else:
             ch = key  # already a str, may be multi-byte Unicode
 
-            if ch == '\x13':  # Ctrl+S — done
-                show_exit_msg(" ^S — done, returning to menu... ")
+            if ch == '\x13':  # Ctrl+S — save without leaving the editor
+                commit_frame()
+                try:
+                    save_callback()
+                    show_exit_msg(" ^S — saved. ")
+                except OSError as exc:
+                    show_exit_msg(f" Save failed: {exc} ")
+
+            elif ch == '\x11':  # Ctrl+Q — done
+                commit_frame()
+                show_exit_msg(" ^Q — returning to menu... ")
                 break
 
-            elif ch in ('\x18', '\x03'):  # Ctrl+X or Ctrl+C — abort
-                show_exit_msg(" ^X — aborted, changes discarded. ")
-                aborted = True
-                break
+            elif ch in ('\x18', '\x03'):  # Ctrl+X or Ctrl+C — discard current frame edits
+                load_frame(frame_index)
+                show_exit_msg(" ^X — current frame restored. ")
 
             elif ch == '\x0f':  # Ctrl+O — toggle mode
                 overwrite = not overwrite
 
             elif ch == '\x06':  # Ctrl+F — toggle cursor-stays-in-place after typing
                 cursor_stays = not cursor_stays
+
+            elif ch == '\x07':  # Ctrl+G — toggle onion skin
+                onion_enabled = not onion_enabled
+
+            elif ch == '\x17':  # Ctrl+W — show fewer reference frames
+                onion_range = max(1, onion_range - 1)
+
+            elif ch == '\x05':  # Ctrl+E — show more reference frames
+                onion_range = min(max(1, len(frames) - 1), onion_range + 1)
+
+            elif ch == '\x10':  # Ctrl+P — previous frame
+                if frame_index > 0:
+                    commit_frame()
+                    frame_index -= 1
+                    load_frame(frame_index)
+
+            elif ch == '\x0e':  # Ctrl+N — next frame
+                if frame_index < len(frames) - 1:
+                    commit_frame()
+                    frame_index += 1
+                    load_frame(frame_index)
 
             elif ch == '\t':  # Tab — shift every line in the frame right by one space
                 for r in range(len(grid)):
@@ -339,17 +415,12 @@ def _curses_edit(stdscr, existing):
                 if not cursor_stays:
                     cur_col += 1
 
-    if aborted:
-        return None
-
-    result_lines = ["".join(row) for row in grid]
-    return "\n".join(result_lines)
+    return frame_index
 
 
-def edit_frame(existing=""):
-    """Launch curses editor; return new content string or None to abort."""
-    result = curses.wrapper(_curses_edit, existing)
-    return result
+def edit_frame_sequence(frames, start_index, save_callback):
+    """Launch the multi-frame curses editor and return its final frame index."""
+    return curses.wrapper(_curses_edit, frames, start_index, save_callback)
 
 
 
@@ -422,6 +493,14 @@ def main():
         print("  (New file — starting empty.)")
 
     dirty = False
+    saved_snapshot = frames.copy()
+
+    def save_from_editor():
+        """Write the current in-memory sequence without leaving curses."""
+        nonlocal dirty
+        write_file(filepath, frames)
+        saved_snapshot[:] = frames
+        dirty = False
 
     while True:
         trigger = get_transition(frames)
@@ -459,25 +538,33 @@ def main():
             if not (0 <= idx < len(frames)):
                 print("  Out of range.")
                 continue
-            result = edit_frame(frames[idx])
-            if result is not None:
-                frames[idx] = check_frame_whitespace(result)
-                dirty = True
-                print("  Frame updated.")
+            edit_frame_sequence(frames, idx, save_from_editor)
+            dirty = frames != saved_snapshot
+            print("  Returned from frame editor.")
 
         elif choice == "3":
-            result = edit_frame()
-            if result is not None:
-                frames.append(check_frame_whitespace(result))
-                dirty = True
-                print(f"  Frame added. Total: {len(frames)}")
+            if frames:
+                try:
+                    after = int(input(f"  Create after frame (0–{len(frames)}; 0 = beginning): "))
+                except ValueError:
+                    continue
+                if not (0 <= after <= len(frames)):
+                    print("  Out of range.")
+                    continue
+            else:
+                after = 0
+            frames.insert(after, "")
+            dirty = True
+            edit_frame_sequence(frames, after, save_from_editor)
+            dirty = frames != saved_snapshot
+            print(f"  Frame inserted at position {after+1}. Total: {len(frames)}")
 
         elif choice == "4":
             if not frames:
                 print("  No frames to delete.")
                 continue
             try:
-                idx = int(input(f"  Frame number to delete (1–{len(frames)}): ")) - 1
+                idx = int(input(f"  Delete which frame (1–{len(frames)}): ")) - 1
             except ValueError:
                 continue
             if not (0 <= idx < len(frames)):
@@ -532,10 +619,12 @@ def main():
         elif choice == "8":
             write_file(filepath, frames)
             dirty = False
+            saved_snapshot[:] = frames
             print(f"  Saved: {filepath}")
 
         elif choice == "9":
             write_file(filepath, frames)
+            saved_snapshot[:] = frames
             print(f"  Saved: {filepath}  Goodbye.")
             break
 
