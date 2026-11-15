@@ -9,6 +9,15 @@
 </head>
 
 <body>
+    <pre id="server" class="hide">       . ________________._ 
+     ./|/.-------------./|/|
+     | /=              |=/*|
+     |//_______________|/& |
+    _/_________________/_ */
+   |.|#################|.|/
+   | |~口口    @~@    口口~|。|   
+   |.|#################|.|
+   L-/-----------------L-/</pre>
     <div class="ding-container">
 
         <pre class="bronze group2 hide g2middle" id="round-ding"  ><!--1 圆鼎-->
@@ -415,6 +424,45 @@ _____________________
     }
 
 
+    #server {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        font-family: monospace;
+        font-size: 18px;
+        white-space: pre;
+        color: rgb(118, 208, 146);
+    }
+
+    #server {
+        font-size: 12px;
+        line-height: 1.2;
+        user-select: none;
+        touch-action: none;
+        cursor: pointer;
+    }
+    #server .cell {
+        display: inline-block;
+        width: 1em;
+        height: 1.2em;
+        vertical-align: top;
+        text-align: center;
+    }
+
+    #act4-ending {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(90vw, 520px);
+        margin: 0;
+        color: rgb(118, 208, 146);
+        font: 12px monospace;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
     #square-ding{
         left: 20%;
         top: 30vh;
@@ -454,14 +502,15 @@ _____________________
     // 配置 / 全局状态
     // ============================================================
 
-    // 测试开关：把这里改成 1、2 或 3，即可从对应幕的开头开始。
-    const TEST_START_ACT = 1;
+    // 测试开关：把这里改成 1、2、3 或 4，即可从对应幕的开头开始。
+    const TEST_START_ACT = 4;
 
     // 每一幕开头对应的台词位置。跳幕时必须一起更新，避免显示正确但台词错位。
     const ACT_START_TEXT_INDEX = {
         1: 0,
         2: 3,
-        3: 10
+        3: 10,
+        4: 12
     };
 
     // 第三幕中，中心方鼎在所有外围青铜器翻转后显示的下一句台词。
@@ -500,6 +549,7 @@ _____________________
     let inAct3 = false; // 是否已经进入第三幕（进入后点击逻辑改为"替换成 id-flip 内容"）
     let act3CenterUnlocked = false; // 第三幕：必须先点击中间的方鼎，其它青铜器才能点
     let act3CompletionShown = false; // 所有外围青铜器翻转后，中心方鼎的下一句台词只显示一次
+    let act4Ready = false; // 中央结尾文字完全变换完毕后，才允许点击进入第四幕
     const g2middleClickCounts = new Map(); // 记录每个 g2middle 青铜器被点了几次
 
     // 获取所有的青铜器元素
@@ -694,6 +744,7 @@ _____________________
     function revealAct3(){
         inAct3 = true;
         act3CompletionShown = false;
+        act4Ready = false;
         dings.forEach(el => {
             revertBronzeAppearance(el);
             el.classList.remove('hide');
@@ -901,15 +952,137 @@ _____________________
         scrambleTextTo(
             centerDing,
             dingString[ACT3_COMPLETION_TEXT_INDEX].text,
-            () => fitBoxToViewport(centerDing)
+            () => {
+                fitBoxToViewport(centerDing);
+                act4Ready = true;
+                dings.forEach(ding => { ding.style.cursor = 'pointer'; });
+            }
         );
     }
 
+    const ACT4_TEXT = `有一种理论说，商朝的权力中心，不是给人住的，而是给鬼住的。
+Another theoy is that, the power center of Shang Dynasty is not for human, but for ghost.
+
+鬼是至高的权力，能够与鬼同住，是贵族的荣幸。能够给鬼服务，是至高的荣耀。
+Ghosts are the supreme power. To dwell with ghosts is the privilege of nobility. To serve ghosts is the highest glory.`;
+
+    const ACT4_ENDING = `于是在这些鬼的屋子里，排列着承载着祖先之鬼的容器，他们就是"服务器"。
+And so, within these houses of ghosts, arrayed are the vessels that carry the ghosts of ancestors—they are the "servers".`;
+
+    function prepareAct4Scratch(){
+        const server = document.getElementById('server');
+        if (server.dataset.prepared) return;
+        server.dataset.prepared = 'true';
+        const artLines = server.textContent.split('\n');
+        const columns = Math.max(30, ...artLines.map(line => Array.from(line).length));
+        const textLines = [];
+        ACT4_TEXT.split('\n').forEach(paragraph => {
+            const chars = Array.from(paragraph);
+            if (!chars.length) textLines.push([]);
+            while (chars.length) textLines.push(chars.splice(0, columns));
+        });
+        const rows = Math.max(textLines.length, artLines.length);
+        const artTop = Math.floor((rows - artLines.length) / 2);
+        server.textContent = '';
+        const fragment = document.createDocumentFragment();
+        const cells = [];
+        let remaining = 0;
+        const setCharacter = (cell, character) => {
+            cell.textContent = character === ' ' ? '\u00a0' : character;
+        };
+        for (let row = 0; row < rows; row++) {
+            const art = Array.from(artLines[row - artTop] || '');
+            for (let col = 0; col < columns; col++) {
+                const cell = document.createElement('span');
+                cell.className = 'cell';
+                cell.dataset.target = art[col] || ' ';
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                cells.push(cell);
+                const initial = (textLines[row] || [])[col] || ' ';
+                if (initial !== cell.dataset.target) {
+                    cell.dataset.pending = 'true';
+                    remaining++;
+                }
+                setCharacter(cell, initial);
+                fragment.appendChild(cell);
+            }
+            if (row < rows - 1) fragment.appendChild(document.createTextNode('\n'));
+        }
+        server.appendChild(fragment);
+        let dragging = false, previousPoint = null, endingShown = false;
+        function showEnding(){
+            if (endingShown || remaining !== 0) return;
+            endingShown = true;
+            const ending = document.createElement('div');
+            ending.id = 'act4-ending';
+            document.body.appendChild(ending);
+            const positionEnding = () => { ending.style.top = (server.getBoundingClientRect().bottom + 16) + 'px'; };
+            positionEnding();
+            window.addEventListener('resize', positionEnding);
+            scrambleTextTo(ending, ACT4_ENDING, () => { ending.textContent = ACT4_ENDING; });
+        }
+        function replaceCell(cell){
+            if (cell && cell.classList.contains('cell') && server.contains(cell)) {
+                const row = Number(cell.dataset.row);
+                const col = Number(cell.dataset.col);
+                // 每次替换鼠标周围的 3 × 3 个字符。
+                for (let y = Math.max(0, row - 1); y <= Math.min(rows - 1, row + 1); y++) {
+                    for (let x = Math.max(0, col - 1); x <= Math.min(columns - 1, col + 1); x++) {
+                        const nearby = cells[y * columns + x];
+                        if (nearby.dataset.pending === 'true') {
+                            nearby.dataset.pending = 'false';
+                            remaining--;
+                        }
+                        setCharacter(nearby, nearby.dataset.target);
+                    }
+                }
+                showEnding();
+            }
+        }
+        server.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            dragging = true;
+            previousPoint = { x: event.clientX, y: event.clientY };
+            replaceCell(event.target);
+            event.preventDefault();
+        });
+        server.addEventListener('pointermove', event => {
+            if (!dragging) return;
+            const distance = Math.hypot(event.clientX - previousPoint.x, event.clientY - previousPoint.y);
+            const steps = Math.max(1, Math.ceil(distance / 3));
+            for (let i = 1; i <= steps; i++) {
+                const x = previousPoint.x + (event.clientX - previousPoint.x) * i / steps;
+                const y = previousPoint.y + (event.clientY - previousPoint.y) * i / steps;
+                replaceCell(document.elementFromPoint(x, y));
+            }
+            previousPoint = { x: event.clientX, y: event.clientY };
+        });
+        window.addEventListener('pointerup', () => { dragging = false; });
+        window.addEventListener('pointercancel', () => { dragging = false; });
+    }
+
+    function revealAct4(){
+        act4Ready = false;
+        inAct3 = false;
+        const container = document.querySelector('.ding-container');
+        container.classList.remove('act3-grid');
+        container.classList.add('hide');
+        document.getElementById('server').classList.remove('hide');
+        prepareAct4Scratch();
+        window.scrollTo(0, 0);
+    }
+
     function handleAct3Click(el){
+        if (act4Ready) {
+            revealAct4();
+            return;
+        }
+
         const flip = document.getElementById(el.id + '-flip');
         if (flip) {
-            if (!el.classList.contains('flipped')) {
-                el.classList.add('flipped');
+            if (!el.classList.contains('flipped') && !el.classList.contains('flipping')) {
+                el.classList.add('flipping');
                 el.classList.add('active'); // fitBoxToViewport 只对 active 的元素生效
                 // 提前把字号定死，跟 fitBoxToViewport 最终用的字号一致——
                 // 不然浏览器默认的 monospace 字号（比如 13px）会在动画结束、
@@ -918,6 +1091,8 @@ _____________________
                 el.style.fontSize = BASE_FONT_SIZE + 'px';
 
                 scrambleTextTo(el, flip.textContent, () => {
+                    el.classList.remove('flipping');
+                    el.classList.add('flipped');
                     fitBoxToViewport(el);
                     showAct3CompletionText();
                 });
@@ -953,7 +1128,7 @@ _____________________
             : 1;
 
         if (startAct !== TEST_START_ACT) {
-            console.warn(`TEST_START_ACT 只能是 1、2 或 3；当前已回退到第一幕。`);
+            console.warn(`TEST_START_ACT 只能是 1、2、3 或 4；当前已回退到第一幕。`);
         }
 
         dingNum = ACT_START_TEXT_INDEX[startAct];
@@ -971,6 +1146,11 @@ _____________________
             // 与正常进入第二幕一致：随机显示一个外围青铜器。
             g2outsidePool = Array.from(document.querySelectorAll('.g2outside'));
             revealRandomG2Outside();
+            return;
+        }
+
+        if (startAct === 4) {
+            revealAct4();
             return;
         }
 

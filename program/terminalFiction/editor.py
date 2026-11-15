@@ -218,7 +218,7 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
             f" Frame {frame_index+1}/{len(frames)}  Ln {cur_row+1} Col {cur_col+1}"
             f"  │  {mode_label}  ^O=toggle  {cursor_label}  ^F=toggle"
             f"  Onion:{'on' if onion_enabled else 'off'}({onion_range}) ^G ^W/^E"
-            f"  ^P/^N=frame  ^S=save  ^Q=done  ^X=discard frame"
+            f"  ^P/^N=frame  ^S=save  ^D=done  ^X=discard frame"
         )
         try:
             stdscr.addstr(sy_status, 0, "─" * (w - 1))
@@ -328,9 +328,9 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
                 except OSError as exc:
                     show_exit_msg(f" Save failed: {exc} ")
 
-            elif ch == '\x11':  # Ctrl+Q — done
+            elif ch == '\x04':  # Ctrl+D — done
                 commit_frame()
-                show_exit_msg(" ^Q — returning to menu... ")
+                show_exit_msg(" ^D — returning to menu... ")
                 break
 
             elif ch in ('\x18', '\x03'):  # Ctrl+X or Ctrl+C — discard current frame edits
@@ -369,7 +369,7 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
                     grid[r].insert(0, ' ')
                 cur_col += 1
 
-            elif ch == '\x04':  # Ctrl+D — delete current line
+            elif ch == '\x0b':  # Ctrl+K — delete current line
                 ensure_row(cur_row)
                 if len(grid) > 1:
                     grid.pop(cur_row)
