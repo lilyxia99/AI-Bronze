@@ -461,6 +461,7 @@ _____________________
         font: 12px monospace;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
+        text-align: center;
     }
 
     #square-ding{
@@ -538,7 +539,7 @@ _____________________
     {id:17, text:"周人靠着三点战胜了商人：\nThe Zhou defeated the Shang on three counts:"},
     {id:18, text:"周人和商人不同，周人接纳外族，允许通婚，他们对移民很友好。\nUnlike the Shang, the Zhou accepted outsiders, united with surrounding tribes, and treated the Qiang kindly."},
     {id:19, text:"周人掌握了商人的核心科技——文字、青铜器和祭祀。\nThe Zhou mastered the Shang's core technologies—writing, bronze casting, and ritual sacrifice."},
-    {id:20, text:"周人并不依赖大模型。他们有自己的占卜术，但他们主要以人为本，而非鬼。\nThe Zhou did not rely on large models. They had their own divination, but they focused on humans, not ghosts."},
+    {id:20, text:"商人崇拜“帝”，是他们的伟大的祖先；周人崇拜“天”，是天所支持的正义。他们相信：得道者多助，失道者寡助。\nShang people workship \"emperor\", it's their majestic ancestors; Zhou people worship \"sky\", and sky only support justics. They believe that people who carry out the justic will receive more support, else few support."},
     {id:21, text:"“商人”这个词在中文里也指做生意的人。\nThe word '商人' (Shangren) in Chinese also means 'merchant' or 'businessman'."},
     {id:22, text:"在周人取商朝而代之之后，商朝人被流放，只能去做生意，于是他们成为了“商人”。\nAfter the Zhou replaced the Shang, the Shang people were exiled and had to take up trade—thus they became 'merchants'."},
     {id:23, text:"毫无疑问，使用大模型是一种只有少数人能够完全控制的特权。他们曾经被商人控制，如今也是。\nUndoubtedly, using large models is a privilege that only a few can fully control. It was once controlled by the Shang, and so it remains today."}
@@ -969,12 +970,21 @@ Ghosts are the supreme power. To dwell with ghosts is the privilege of nobility.
     const ACT4_ENDING = `于是在这些鬼的屋子里，排列着承载着祖先之鬼的容器，他们就是"服务器"。
 And so, within these houses of ghosts, arrayed are the vessels that carry the ghosts of ancestors—they are the "servers".`;
 
+    const ACT4_SERVER_ANIMATION = "     ./|/.-------------./|/|\n     | --o<<--o<<--o<<-|-/*|\n     |--o<<--o<<--o<<--|-& |\n    _/_________________/_ */\n   |.|#################|.|/\n   | |~口口    @~@    口口~|。|   \n   |.|#################|.|\n   L-/-----------------L-/";
+    const ACT4_NEXT_TEXT = `商朝后期，商人不再允许外族通婚，他们把邻居羌人拿来当牛羊一样作为祭祀的燃料焚烧。
+In the late Shang dynasty, the Shang people no longer permitted intermarriage with foreign tribes.
+They took their neighbors, the Qiang people, and burned them as sacrificial fuel, just like cattle and sheep.`;
+
     function prepareAct4Scratch(){
         const server = document.getElementById('server');
         if (server.dataset.prepared) return;
         server.dataset.prepared = 'true';
         const artLines = server.textContent.split('\n');
-        const columns = Math.max(30, ...artLines.map(line => Array.from(line).length));
+        const occupiedLines = artLines.filter(line => line.trim());
+        const artLeft = Math.min(...occupiedLines.map(line => line.search(/\S/)));
+        const artRight = Math.max(...occupiedLines.map(line => Array.from(line.trimEnd()).length));
+        const artWidth = artRight - artLeft;
+        const columns = Math.max(30, artWidth);
         const textLines = [];
         ACT4_TEXT.split('\n').forEach(paragraph => {
             const chars = Array.from(paragraph);
@@ -991,15 +1001,17 @@ And so, within these houses of ghosts, arrayed are the vessels that carry the gh
             cell.textContent = character === ' ' ? '\u00a0' : character;
         };
         for (let row = 0; row < rows; row++) {
-            const art = Array.from(artLines[row - artTop] || '');
+            const sourceArt = Array.from(artLines[row - artTop] || '').slice(artLeft, artRight);
+            const artOffset = Math.floor((columns - artWidth) / 2);
+            const textLine = textLines[row] || [];
             for (let col = 0; col < columns; col++) {
                 const cell = document.createElement('span');
                 cell.className = 'cell';
-                cell.dataset.target = art[col] || ' ';
+                cell.dataset.target = sourceArt[col - artOffset] || ' ';
                 cell.dataset.row = row;
                 cell.dataset.col = col;
                 cells.push(cell);
-                const initial = (textLines[row] || [])[col] || ' ';
+                const initial = textLine[col] || ' ';
                 if (initial !== cell.dataset.target) {
                     cell.dataset.pending = 'true';
                     remaining++;
@@ -1010,7 +1022,7 @@ And so, within these houses of ghosts, arrayed are the vessels that carry the gh
             if (row < rows - 1) fragment.appendChild(document.createTextNode('\n'));
         }
         server.appendChild(fragment);
-        let dragging = false, previousPoint = null, endingShown = false;
+        let dragging = false, previousPoint = null, endingShown = false, endingReady = false, advanced = false;
         function showEnding(){
             if (endingShown || remaining !== 0) return;
             endingShown = true;
@@ -1020,7 +1032,10 @@ And so, within these houses of ghosts, arrayed are the vessels that carry the gh
             const positionEnding = () => { ending.style.top = (server.getBoundingClientRect().bottom + 16) + 'px'; };
             positionEnding();
             window.addEventListener('resize', positionEnding);
-            scrambleTextTo(ending, ACT4_ENDING, () => { ending.textContent = ACT4_ENDING; });
+            scrambleTextTo(ending, ACT4_ENDING, () => {
+                ending.textContent = ACT4_ENDING;
+                endingReady = true;
+            });
         }
         function replaceCell(cell){
             if (cell && cell.classList.contains('cell') && server.contains(cell)) {
@@ -1040,15 +1055,53 @@ And so, within these houses of ghosts, arrayed are the vessels that carry the gh
                 showEnding();
             }
         }
+        function advanceServer(){
+            advanced = true;
+            const lines = ACT4_SERVER_ANIMATION.split('\n');
+            const left = Math.min(...lines.filter(line => line.trim()).map(line => line.search(/\S/)));
+            const right = Math.max(...lines.map(line => Array.from(line.trimEnd()).length));
+            const width = right - left;
+            const offset = Math.floor((columns - width) / 2);
+            const top = artTop + artLines.length - lines.length;
+            const targetLines = [];
+            for (let row = 0; row < rows; row++) {
+                const line = Array.from(lines[row - top] || '').slice(left, right);
+                targetLines.push(Array.from({length: columns}, (_, col) => line[col - offset] || ' ').join(''));
+            }
+            // 使用现有的逐字乱码动画，同时保留可点击的字符网格。
+            const gridText = {
+                get textContent(){
+                    return Array.from({length: rows}, (_, row) =>
+                        cells.slice(row * columns, (row + 1) * columns)
+                            .map(cell => cell.textContent === '\u00a0' ? ' ' : cell.textContent).join('')
+                    ).join('\n');
+                },
+                set textContent(value){
+                    value.split('\n').forEach((line, row) => {
+                        Array.from(line).forEach((character, col) => {
+                            if (row < rows && col < columns) setCharacter(cells[row * columns + col], character);
+                        });
+                    });
+                }
+            };
+            scrambleTextTo(gridText, targetLines.join('\n'), () => {
+                const ending = document.getElementById('act4-ending');
+                setTimeout(() => { ending.textContent = ACT4_NEXT_TEXT; }, 1000);
+            });
+        }
         server.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
+            if (endingShown) {
+                if (endingReady && !advanced && event.target.classList.contains('cell')) advanceServer();
+                return;
+            }
             dragging = true;
             previousPoint = { x: event.clientX, y: event.clientY };
             replaceCell(event.target);
             event.preventDefault();
         });
         server.addEventListener('pointermove', event => {
-            if (!dragging) return;
+            if (!dragging || endingShown) return;
             const distance = Math.hypot(event.clientX - previousPoint.x, event.clientY - previousPoint.y);
             const steps = Math.max(1, Math.ceil(distance / 3));
             for (let i = 1; i <= steps; i++) {
