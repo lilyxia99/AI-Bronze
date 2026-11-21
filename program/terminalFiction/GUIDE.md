@@ -69,6 +69,7 @@ python3 editor.py
 | Page Up / Page Down | 翻页 |
 | Enter | 光标移到下一行行首（打字机风格） |
 | 任意可见字符 | 当前模式下输入，光标右移 |
+| **Ctrl+U** | 切换全角显示预览；ASCII 和空格显示为全角，保存保留原字符（原有全角仍为全角） |
 | **Ctrl+O** | 切换 **Overwrite**（覆盖）/ **Insert**（插入）模式 |
 | Backspace | 删除光标左侧字符，右边内容左移 |
 | Delete | 删除光标处字符，右边内容左移 |

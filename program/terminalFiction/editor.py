@@ -11,6 +11,7 @@ import sys
 import time
 import curses
 import locale
+import unicodedata
 
 locale.setlocale(locale.LC_ALL, "")  # Required for Unicode / CJK input via get_wch()
 
@@ -21,6 +22,25 @@ TRANSITION_MARKER = "—type:"
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SAVE_DIR = os.path.normpath(os.path.join(_SCRIPT_DIR, "..", "..", "Assets","asciiart"))
 # ──────────────────────────────────────────────────────────────────────────
+
+
+def display_char(ch, fullwidth=False):
+    """Convert printable ASCII for display only; keep stored characters intact."""
+    if fullwidth:
+        if ch == " ":
+            return "\u3000"
+        if "!" <= ch <= "~":
+            return chr(ord(ch) + 0xFEE0)
+    return ch
+
+
+def display_width(text, fullwidth=False):
+    """Terminal cell width, including CJK and existing fullwidth characters."""
+    return sum(
+        0 if unicodedata.combining(ch) else
+        2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+        for ch in (display_char(c, fullwidth) for c in text)
+    )
 
 
 def clear():
@@ -101,14 +121,16 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
     scroll_top = 0
     overwrite = True  # Start in Overwrite mode; Ctrl+O toggles to Insert mode
     cursor_stays = False  # Ctrl+F toggles: keep cursor in place after typing a char
+    fullwidth = False      # Ctrl+U: display only, never transform grid or frames
+    scroll_left = 0        # Horizontal offset in terminal cells
     onion_enabled = False  # Ctrl+G
     onion_range = 1        # Ctrl+W / Ctrl+E
 
     def load_frame(index):
-        nonlocal grid, cur_row, cur_col, scroll_top
+        nonlocal grid, cur_row, cur_col, scroll_top, scroll_left
         raw_lines = frames[index].split("\n") if frames[index] else [""]
         grid = [list(line) for line in raw_lines]
-        cur_row = cur_col = scroll_top = 0
+        cur_row = cur_col = scroll_top = scroll_left = 0
 
     def commit_frame():
         frames[frame_index] = "\n".join("".join(row) for row in grid)
@@ -165,50 +187,61 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
 
         stdscr.erase()
 
-        # Draw grid rows, overlaying line numbers on each row's leading
-        # blank run (purely visual — never written into the grid).
+        # Logical columns stay tied to source characters, while screen columns
+        # follow the displayed glyph widths. Scroll without splitting wide glyphs.
+        cursor_row = grid[cur_row] if cur_row < len(grid) else []
+        cursor_prefix = "".join(cursor_row[:cur_col])
+        cursor_x = display_width(cursor_prefix, fullwidth)
+        cursor_x += max(0, cur_col - len(cursor_row)) * (2 if fullwidth else 1)
+        viewport_width = max(1, w - 1)
+        if cursor_x < scroll_left:
+            scroll_left = cursor_x
+        elif cursor_x + 2 > scroll_left + viewport_width:
+            scroll_left = max(0, cursor_x + 2 - viewport_width)
+
+        # Line numbers and onion skins remain visual overlays.
         num_width = len(str(len(grid))) if grid else 1
         for sy in range(edit_h):
             gy = sy + scroll_top
             row = grid[gy] if gy < len(grid) else []
-            full_str = "".join(row)
-
             avail = 0
             for c in range(num_width):
-                if c < len(row):
-                    if row[c] == ' ':
-                        avail += 1
-                    else:
-                        break
-                else:
-                    avail += 1  # past end of row counts as implicit blank
+                if c < len(row) and row[c] != ' ':
+                    break
+                avail += 1
 
-            shown = str(gy + 1).rjust(num_width)[num_width - avail:] if avail else ""
-
-            try:
-                if shown:
-                    shown_disp = shown[:w - 1]
-                    stdscr.addstr(sy, 0, shown_disp, num_attr)
-                    rest = full_str[avail:][:max(0, w - 1 - len(shown_disp))]
-                    if rest:
-                        stdscr.addstr(sy, len(shown_disp), rest)
-                else:
-                    stdscr.addstr(sy, 0, full_str[:w - 1])
-            except curses.error:
-                pass
-
-            # Draw references only in blank cells. They never modify ``grid``;
-            # typing at their position therefore naturally replaces the overlay.
-            if onion_enabled:
-                for gx in range(w - 1):
-                    if gx < len(row) and row[gx] != " ":
-                        continue
+            # Include implicit blank cells so onion skins extend beyond row ends.
+            gx = 0
+            x = 0
+            while x < scroll_left + viewport_width:
+                ch = row[gx] if gx < len(row) else " "
+                cell_width = display_width(ch, fullwidth)
+                attr = curses.A_NORMAL
+                if ch == " ":
                     ghost = ghost_at(gy, gx)
                     if ghost:
-                        try:
-                            stdscr.addstr(sy, gx, ghost[0], curses.color_pair(ghost[1]) | curses.A_DIM)
-                        except curses.error:
-                            pass
+                        ch = ghost[0]
+                        attr = curses.color_pair(ghost[1]) | curses.A_DIM
+                shown = display_char(ch, fullwidth)
+                glyph_width = display_width(shown)
+                sx = x - scroll_left
+                if sx >= 0 and sx + glyph_width <= viewport_width:
+                    try:
+                        stdscr.addstr(sy, sx, shown, attr)
+                    except curses.error:
+                        pass
+                # Ghosts must not move the following source cells.
+                x += cell_width
+                gx += 1
+
+            if avail:
+                shown = str(gy + 1).rjust(num_width)[num_width - avail:]
+                number_x = display_width(" " * avail, fullwidth) - len(shown) - scroll_left
+                if number_x >= 0 and number_x + len(shown) <= viewport_width:
+                    try:
+                        stdscr.addstr(sy, number_x, shown, num_attr)
+                    except curses.error:
+                        pass
 
         # Status bar
         sy_status = h - STATUS_LINES
@@ -216,6 +249,7 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
         cursor_label = "Cursor:Fixed" if cursor_stays else "Cursor:Advance"
         hint = (
             f" Frame {frame_index+1}/{len(frames)}  Ln {cur_row+1} Col {cur_col+1}"
+            f"  Width:{'Full' if fullwidth else 'Original'} ^U"
             f"  │  {mode_label}  ^O=toggle  {cursor_label}  ^F=toggle"
             f"  Onion:{'on' if onion_enabled else 'off'}({onion_range}) ^G ^W/^E"
             f"  ^P/^N=frame  ^S=save  ^D=done  ^X=discard frame"
@@ -228,7 +262,7 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
 
         # Position cursor
         screen_cur_y = cur_row - scroll_top
-        screen_cur_x = min(cur_col, w - 2)
+        screen_cur_x = max(0, min(cursor_x - scroll_left, w - 2))
         if 0 <= screen_cur_y < edit_h:
             try:
                 stdscr.move(screen_cur_y, screen_cur_x)
@@ -336,6 +370,9 @@ def _curses_edit(stdscr, frames, start_index, save_callback):
             elif ch in ('\x18', '\x03'):  # Ctrl+X or Ctrl+C — discard current frame edits
                 load_frame(frame_index)
                 show_exit_msg(" ^X — current frame restored. ")
+
+            elif ch == '\x15':  # Ctrl+U — toggle fullwidth display only
+                fullwidth = not fullwidth
 
             elif ch == '\x0f':  # Ctrl+O — toggle mode
                 overwrite = not overwrite
